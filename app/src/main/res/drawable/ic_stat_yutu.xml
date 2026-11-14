@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Status-bar icon for YUTU's notifications (new videos): the play glyph, white on transparent
-     as Android requires for small icons. -->
+<!-- Status-bar icon for YUTU's notifications: the Y, white on transparent as Android
+     requires for small icons. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -8,5 +8,5 @@
     android:viewportHeight="24">
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M8,5v14l11,-7z" />
+        android:pathData="M5,4 L9.2,4 L12,9.2 L14.8,4 L19,4 L13.6,12 L13.6,20 L10.4,20 L10.4,12 Z" />
 </vector>

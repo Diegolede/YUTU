@@ -5,6 +5,9 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+- New icon: black with the Y, plus matching splash screen and status-bar glyph.
+- YUTU is made by trn1 (fork author and security review); Settings › About now credits it.
+
 ## 1.0.0
 
 ### New

@@ -50,7 +50,7 @@
     <!-- %1$s = the newer version. -->
     <string name="settings_update_available">Version %1$s is available</string>
     <string name="settings_source">Source code on GitHub</string>
-    <string name="settings_source_line">A GPL-3.0 fork of Yuno. Report a problem or ask for a feature</string>
+    <string name="settings_source_line">Made by trn1: fork author and security review. GPL-3.0 fork of Yuno</string>
 <!-- Settings › About: the crash report (GitHub #55), shared to paste into an issue. -->
     <string name="settings_crash_title">Crash report</string>
     <string name="settings_crash_saved">Saved from the last crash. Share it and paste it into a GitHub issue</string>

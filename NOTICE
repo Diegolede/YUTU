@@ -1,13 +1,16 @@
 YUTU — an ad-free YouTube player for Android
 ============================================
 
+YUTU is made by trn1 (https://github.com/Diegolede), author of this fork and
+responsible for its security review.
+
 This program is a modified fork of Yuno (https://github.com/danielkanan/Yuno),
 Copyright (C) the Yuno contributors, and is distributed under the GNU General
 Public License, version 3 (see LICENSE). The full source of this fork must be
 made available alongside any binary you distribute.
 
-Modifications made in this fork
--------------------------------
+Modifications made in this fork (trn1)
+--------------------------------------
 - Renamed to YUTU; new application id (com.yutu), new icon, wordmark and name.
 - Apple's SF Symbols replaced with Material Icons (Apache License 2.0), so no
   Apple glyphs are redistributed.

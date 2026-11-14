@@ -1,0 +1,43 @@
+YUTU — an ad-free YouTube player for Android
+============================================
+
+This program is a modified fork of Yuno (https://github.com/danielkanan/Yuno),
+Copyright (C) the Yuno contributors, and is distributed under the GNU General
+Public License, version 3 (see LICENSE). The full source of this fork must be
+made available alongside any binary you distribute.
+
+Modifications made in this fork
+-------------------------------
+- Renamed to YUTU; new application id (com.yutu), new icon, wordmark and name.
+- Apple's SF Symbols replaced with Material Icons (Apache License 2.0), so no
+  Apple glyphs are redistributed.
+- Apple's SF Pro Display replaced with Inter (SIL Open Font License 1.1,
+  see licenses/Inter-OFL.txt).
+- Self-update turned into a notice only: the app checks for a newer release and
+  opens its page in the browser. It never downloads or installs an APK, and the
+  manifest no longer requests REQUEST_INSTALL_PACKAGES or
+  UPDATE_PACKAGES_WITHOUT_USER_ACTION.
+
+Third-party components
+----------------------
+- NewPipeExtractor — GPL-3.0 (https://github.com/TeamNewPipe/NewPipeExtractor)
+- AndroidX Media3 — Apache-2.0 (https://github.com/androidx/media)
+- OkHttp — Apache-2.0; Coil — Apache-2.0
+- Kotlin, Jetpack Compose — Apache-2.0
+- Mozilla Rhino — MPL-2.0
+- jsoup — MIT
+- ML Kit Translate — Google, model downloaded on first use
+- Haze — Apache-2.0 (https://github.com/chrisbanes/haze)
+- Material Icons — Apache-2.0
+- Inter — SIL OFL 1.1
+
+Disclaimer
+----------
+YUTU is not affiliated with, endorsed by, or connected to YouTube or Google in
+any way. It does not host videos: it plays streams served by YouTube. Using an
+unofficial client may violate YouTube's Terms of Service and Google may suspend
+accounts used with it; use it at your own discretion.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.

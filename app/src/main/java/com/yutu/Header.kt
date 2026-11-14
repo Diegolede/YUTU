@@ -1,0 +1,631 @@
+package com.yutu
+
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseInCubic
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.yutu.icons.AppIcons
+import kotlin.math.roundToInt
+import dev.chrisbanes.haze.ExperimentalHazeApi
+import dev.chrisbanes.haze.HazeInputScale
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import dev.chrisbanes.haze.materials.HazeMaterials
+import kotlinx.coroutines.launch
+
+/**
+ * A page whose header scrolls away: banner, profile, tabs. [pinned] stays under the status bar
+ * (tab row with a top fade). [content] receives the header height as top padding.
+ */
+@Composable
+fun CollapsingHeaderLayout(
+    resetKey: Any? = null,
+    header: @Composable () -> Unit,
+    pinned: (@Composable (headerBottom: () -> Float) -> Unit)? = null,
+    content: @Composable (top: Dp) -> Unit,
+) {
+    val density = LocalDensity.current
+    val c = MaterialTheme.colorScheme
+    val reduced = rememberReducedMotion()
+    val scope = rememberCoroutineScope()
+    var headerPx by remember { mutableIntStateOf(0) }
+    /** 0 = fully shown, -headerPx = fully hidden. */
+    val offset = remember { Animatable(0f) }
+    val settleSpec = spring<Float>(dampingRatio = 0.9f, stiffness = 420f)
+
+    LaunchedEffect(resetKey) { if (reduced) offset.snapTo(0f) else offset.animateTo(0f, settleSpec) }
+
+    val connection = remember(reduced) {
+        object : NestedScrollConnection {
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                val h = headerPx.toFloat()
+                if (h <= 0f || consumed.y == 0f) return Offset.Zero
+                val target = (offset.value + consumed.y).coerceIn(-h, 0f)
+                scope.launch { offset.snapTo(target) }
+                return Offset.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                val h = headerPx.toFloat()
+                val v = offset.value
+                if (h > 0f && v < 0f && v > -h) {
+                    val target = if (v < -h / 2f) -h else 0f
+                    if (reduced) offset.snapTo(target) else offset.animateTo(target, settleSpec)
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
+    val statusTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    Box(Modifier.fillMaxSize().nestedScroll(connection)) {
+        content(with(density) { headerPx.toDp() })
+        val page = c.background
+        val vignette = remember(page) { vignetteBrush(page, opaqueAtTop = true) }
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height((statusTop + 72.dp) / 2)
+                .graphicsLayer { alpha = if (headerPx > 0) (-offset.value / headerPx).coerceIn(0f, 1f) else 0f }
+                .drawBehind { drawRect(vignette) },
+        )
+        pinned?.invoke { (headerPx + offset.value).coerceAtLeast(0f) }
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .onSizeChanged { headerPx = it.height }
+                .graphicsLayer {
+                    translationY = offset.value
+                    alpha = if (headerPx > 0) 1f - 0.5f * (-offset.value / headerPx).coerceIn(0f, 1f) else 1f
+                }
+                .background(c.background),
+        ) { header() }
+    }
+}
+
+/** Strongest a page vignette gets (Derek: 80% of Ledgii's 95%). */
+const val VignetteAlpha = 0.76f
+
+/**
+ * Page color fading from [VignetteAlpha] to 0 on a smoothstep ramp: flat at both ends, so
+ * there's no visible line where the vignette begins. [opaqueAtTop] puts the strong end on top.
+ */
+fun vignetteBrush(color: Color, opaqueAtTop: Boolean): Brush {
+    val stops = 12
+    return Brush.verticalGradient(
+        *Array(stops + 1) { i ->
+            val t = i / stops.toFloat()
+            val strength = if (opaqueAtTop) 1f - t else t
+            t to color.copy(alpha = VignetteAlpha * strength * strength * (3f - 2f * strength))
+        },
+    )
+}
+
+/** Bottom padding as given, plus the collapsing header's height on top. */
+fun PaddingValues.withTop(top: Dp) = PaddingValues(top = top, bottom = calculateBottomPadding())
+
+/**
+ * How far down the window the bar ends: the status-bar inset it sits under, plus
+ * [TopBarContentHeight]. Read here, not baked in — a cutout, a flat screen and a
+ * freeform window are different insets.
+ */
+@Composable
+fun topBarHeight(): Dp =
+    WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + TopBarContentHeight
+
+/**
+ * Where a page's first row starts: [LargePageTitle]'s vertical centre lines up with
+ * the top bar's controls (same row as search and account).
+ */
+@Composable
+fun pageContentTop(): Dp {
+    val barMid = topBarHeight() - TopBarContentHeight / 2
+    return (barMid - LargePageTitleBlockHeight / 2).coerceAtLeast(0.dp)
+}
+
+/** First body row when there is no in-list title (Search tab): same clearance as Home after its title. */
+@Composable
+fun pageBodyTop(): Dp = pageContentTop() + LargePageTitleBlockHeight + LargePageTitleContentGap
+
+/** [LargePageTitle] vertical padding plus ~41dp line box for 34sp display type. */
+private val LargePageTitleBlockHeight = 8.dp + 41.dp + 8.dp
+
+/** Floating controls — the back circle and each action slot. Apple's 44pt. */
+private val TopControl = 44.dp
+
+/** Between two actions in the pill, measured off Apple Music's share-and-more pill. */
+private val ActionGap = 10.dp
+
+/** Inset at each end of the pill once it holds more than one action. */
+private val ActionEdge = 1.5.dp
+
+/** Between the search field's pill and the actions beside it. */
+private val AccessoryGap = 8.dp
+
+/** Room below a [LargePageTitle] before the page body (not counted in bar alignment). */
+private val LargePageTitleContentGap = 12.dp
+
+/**
+ * The large in-list page title: SF Pro Display at 34sp,
+ * weight 800, tracking −0.5, inset by the page gutter with 8dp above and
+ * [LargePageTitleContentGap] extra below before the first row of content.
+ * It scrolls away with the list; the bar above it never carries a second copy.
+ */
+/** Matches [LargePageTitle]'s 34sp cap height in the bar-alignment row. */
+private val LargePageBrandMarkSize = 42.dp
+
+/** Wordmark aspect (1438×736 source). */
+private const val WordmarkAspect = 1438f / 736f
+
+@Composable
+fun LargePageBrandMark(modifier: Modifier = Modifier) {
+    val pull = LocalBarPullRefresh.current
+    val extra = pull?.extraPadding() ?: 0.dp
+    val inset = (LargePageTitleBlockHeight - LargePageBrandMarkSize) / 2
+    val ink = MaterialTheme.colorScheme.onBackground
+    BarPullReveal(
+        modifier
+            .padding(
+                start = PageGutter,
+                end = PageGutter,
+                top = inset + extra,
+                bottom = inset + LargePageTitleContentGap + extra,
+            )
+            .height(LargePageBrandMarkSize)
+            .aspectRatio(WordmarkAspect)
+            .pullScale(pull?.markScale() ?: 1f),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.wordmark),
+            contentDescription = "Yutu",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
+            colorFilter = ColorFilter.tint(ink, BlendMode.SrcIn),
+        )
+    }
+}
+
+/** Default in-list page title size; [LargePageTitleCompactFontSize] on Subscriptions / Library. */
+private val LargePageTitleFontSize = 34.sp
+internal val LargePageTitleCompactFontSize = 30.sp
+
+private fun titleCapHeight(fontSize: TextUnit): Dp =
+    (fontSize.value * 41f / LargePageTitleFontSize.value).dp
+
+@Composable
+fun LargePageTitle(
+    title: String,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = LargePageTitleFontSize,
+    /** False on overlay pages (playlist, …) that already inset with [pageBodyTop]. */
+    barAligned: Boolean = true,
+) {
+    val pull = LocalBarPullRefresh.current
+    val extra = pull?.extraPadding() ?: 0.dp
+    val inset = if (barAligned) (LargePageTitleBlockHeight - titleCapHeight(fontSize)) / 2 else 0.dp
+    val bottom = (if (barAligned) inset + LargePageTitleContentGap else LargePageTitleContentGap) + extra
+    val style = OwnDirectionText.merge(
+        TextStyle(
+            fontFamily = SfProDisplay,
+            fontWeight = FontWeight.W800,
+            fontSize = fontSize,
+            letterSpacing = (-0.5).sp,
+            color = MaterialTheme.colorScheme.onBackground,
+        ),
+    )
+    if (pull == null) {
+        Text(
+            text = title,
+            modifier = modifier.padding(
+                start = PageGutter,
+                end = PageGutter,
+                top = inset,
+                bottom = if (barAligned) inset + LargePageTitleContentGap else LargePageTitleContentGap,
+            ),
+            style = style,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        return
+    }
+    // Same growth as the wordmark, so a later page can opt in by wrapping itself in BarPullRefresh.
+    BarPullReveal(
+        modifier
+            .padding(start = PageGutter, end = PageGutter, top = inset + extra, bottom = bottom)
+            .pullScale(pull.markScale()),
+    ) {
+        Text(text = title, style = style, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/**
+ * Glass controls drawn above the page layer. The page records itself for them
+ * to sample; a control inside that recording nests the render node and the
+ * process dies. Each [PageTopBar] registers here while glass is on, and
+ * [TopChromeLayer] draws the front one outside the recording.
+ */
+internal class TopChromeHost {
+    val entries = mutableListOf<TopChromeEntry>()
+    var tick by mutableStateOf(0)
+}
+
+internal class TopChromeEntry {
+    var content: (@Composable () -> Unit)? = null
+}
+
+internal val LocalTopChrome = staticCompositionLocalOf<TopChromeHost?> { null }
+private val LocalTopChromeDrawing = staticCompositionLocalOf { false }
+
+@Composable
+internal fun TopChromeLayer(host: TopChromeHost, modifier: Modifier = Modifier) {
+    host.tick
+    val top = host.entries.lastOrNull() ?: return
+    Box(modifier) {
+        CompositionLocalProvider(LocalTopChromeDrawing provides true) {
+            top.content?.invoke()
+        }
+    }
+}
+
+/**
+ * The transparent bar every page shares: a circle for back, an
+ * optional filling accessory (the search field), and trailing actions. No title
+ * and no slab — the page's own top shows through, and the large title lives in
+ * the list.
+ */
+@Composable
+fun PageTopBar(
+    onBack: (() -> Unit)? = null,
+    accessory: (@Composable () -> Unit)? = null,
+    // False while the page is closing. The exit animation keeps the screen
+    // composed, and without this the search field would stay until that finished.
+    shown: Boolean = true,
+    // Passed through to the chrome layer. That layer is outside the page, so it
+    // cannot see [LocalBarPullRefresh] itself.
+    pull: BarPullRefreshState? = null,
+    // Sits just before the actions pill, outside it. The update chip keeps its
+    // own fill; the pill is only the icon actions.
+    beside: @Composable () -> Unit = {},
+    actions: @Composable () -> Unit = {},
+) {
+    val glass = LocalLiquidGlassEnabled.current && isGlassSupported()
+    val host = LocalTopChrome.current
+    // Drawn later by [TopChromeLayer], outside the page. Liquid glass has to
+    // sample the recording from outside it, and the haze blur has to sit
+    // outside the haze source the way the nav does. Inside that source the
+    // buttons are part of the snapshot, so there is nothing behind them to blur.
+    if (host != null && !LocalTopChromeDrawing.current) {
+        if (shown) {
+            val pullState = pull ?: LocalBarPullRefresh.current
+            val entry = remember { TopChromeEntry() }
+            DisposableEffect(host, entry) {
+                host.entries.add(entry)
+                host.tick++
+                onDispose {
+                    host.entries.remove(entry)
+                    host.tick++
+                }
+            }
+            SideEffect {
+                entry.content = { PageTopBar(onBack, accessory, pull = pullState, beside = beside, actions = actions) }
+                host.tick++
+            }
+        }
+        return
+    }
+    if (!shown) return
+    val iconTint = if (glass) glassContentColor() else MaterialTheme.colorScheme.onSurface
+    val extra = (pull ?: LocalBarPullRefresh.current)?.extraPadding() ?: 0.dp
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .then(if (extra > 0.dp) Modifier.padding(top = extra, bottom = extra) else Modifier)
+            .height(TopBarContentHeight),
+    ) {
+        if (onBack != null) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = PageGutter)
+                    .size(TopControl)
+                    // Glass outside the press scale. The scale is a graphics layer,
+                    // and sampling the page from inside one shifts the circle's reflection.
+                    .floatingChrome(CircleShape)
+                    .pressable(onClick = onBack),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(AppIcons.ArrowBack, contentDescription = "Back", tint = iconTint)
+            }
+        }
+        val leading = if (onBack != null) PageGutter + TopControl + AccessoryGap else PageGutter
+        // BitChord's trailing row (FrostedTopBar): the accessory takes the
+        // space up to the actions, and the actions keep their own width at
+        // the end. The size animation is on the pill, not on this row — a
+        // spring out here clips the buttons instead of shrinking the glass.
+        Row(
+            Modifier
+                .align(Alignment.CenterEnd)
+                .then(if (accessory != null) Modifier.fillMaxWidth().padding(start = leading) else Modifier)
+                .padding(end = PageGutter),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (accessory != null) {
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(TopControl)
+                        .floatingChrome(RoundedCornerShape(percent = 50)),
+                ) { accessory() }
+                Spacer(Modifier.width(AccessoryGap))
+            }
+            beside()
+            PageActions(content = actions)
+        }
+    }
+}
+
+/**
+ * One shared pill for every action at the right of the bar. Brought over from
+ * BitChord's [ArtworkPageActions]: the glass is outside the spring, so the
+ * pill's own shape shrinks and grows, and the right edge stays put.
+ */
+@Composable
+private fun PageActions(content: @Composable () -> Unit) {
+    ActionsRow(
+        modifier = Modifier
+            .floatingChrome(CircleShape)
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow,
+                ),
+            )
+            // One icon and no inset is a true circle, the back button's size.
+            // Once another action exists, Apple's inset opens at both ends.
+            // Layout padding inside the surface, not an outer margin.
+            .actionEdgePadding(),
+    ) {
+        CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides TopControl) {
+            content()
+        }
+    }
+}
+
+/**
+ * The actions side by side, centred on the pill's height, with Apple's gap
+ * between each and the one before it.
+ *
+ * Each gap opens with the width of the action after it, so one sliding in from
+ * nothing brings its gap with it rather than the row jumping by a gap's width
+ * the frame it appears. From BitChord's ActionsRow.
+ */
+@Composable
+private fun ActionsRow(modifier: Modifier, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
+        val target = TopControl.roundToPx()
+        val gap = ActionGap.toPx()
+        val gaps = placeables.mapIndexed { index, placeable ->
+            if (index == 0) 0 else (gap * (placeable.width.toFloat() / target).coerceIn(0f, 1f)).roundToInt()
+        }
+        val width = placeables.sumOf { it.width } + gaps.sum()
+        val height = placeables.maxOfOrNull { it.height } ?: 0
+        layout(width, height) {
+            var x = 0
+            placeables.forEachIndexed { index, placeable ->
+                x += gaps[index]
+                placeable.placeRelative(x, (height - placeable.height) / 2)
+                x += placeable.width
+            }
+        }
+    }
+}
+
+/**
+ * Edge padding that collapses only for the single-action state.
+ *
+ * An action slot can measure anywhere from nothing up to a full target, so the
+ * content width — not how many composables were emitted — decides. At exactly
+ * one icon the pill stays circular; past that it gains Apple's inset and keeps
+ * fully round ends. From BitChord's artworkActionEdgePadding.
+ */
+private fun Modifier.actionEdgePadding(): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0))
+    val oneActionWidth = TopControl.roundToPx()
+    val extraActionFraction = ((placeable.width - oneActionWidth).toFloat() / oneActionWidth)
+        .coerceIn(0f, 1f)
+    val edgePadding = (ActionEdge.roundToPx() * extraActionFraction).roundToInt()
+    val width = (placeable.width + edgePadding * 2).coerceIn(constraints.minWidth, constraints.maxWidth)
+    layout(width, placeable.height) {
+        placeable.placeRelative(edgePadding, 0)
+    }
+}
+
+/**
+ * Search and the account, as two slots in [PageActions]. The pill, its inset,
+ * and the gap between them belong to that row.
+ */
+@Composable
+fun HeaderActions(onSearch: () -> Unit, onAccount: () -> Unit) {
+    val glass = LocalLiquidGlassEnabled.current && isGlassSupported()
+    val tint = if (glass) glassContentColor() else MaterialTheme.colorScheme.onSurface
+    Box(Modifier.size(TopControl).pressable(onClick = onSearch), contentAlignment = Alignment.Center) {
+        Icon(AppIcons.Search, contentDescription = "Search", tint = tint, modifier = Modifier.size(24.dp))
+    }
+    AccountAction(onAccount)
+}
+
+/** The account photo at 28dp, or a person glyph on a filled circle when signed out. */
+@Composable
+fun AccountAction(onClick: () -> Unit) {
+    val profile = Account.profile
+    val c = MaterialTheme.colorScheme
+    Box(Modifier.size(TopControl).pressable(onClick = onClick), contentAlignment = Alignment.Center) {
+        if (profile == null) {
+            Box(
+                Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(c.surfaceVariant)
+                    .thumbnailHairline(CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    AppIcons.Person,
+                    contentDescription = "Sign in",
+                    tint = c.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        } else {
+            Box(Modifier.size(28.dp)) {
+                ChannelAvatar(profile.avatar, profile.name, size = 28)
+                Box(Modifier.matchParentSize().thumbnailHairline(CircleShape))
+            }
+        }
+    }
+}
+
+/** Hairline that keeps a light photo from dissolving into the bar. */
+@Composable
+fun Modifier.thumbnailHairline(shape: Shape): Modifier {
+    val dark = isDarkTheme()
+    return border(
+        width = 1.dp,
+        color = if (dark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.15f),
+        shape = shape,
+    )
+}
+
+/**
+ * The navbar's material, on a top-bar circle or pill. With glass on, this
+ * samples the page layer, so the bar has to be drawn outside that recording
+ * ([TopChromeLayer]). With glass off, the haze blur the nav uses.
+ */
+@OptIn(ExperimentalHazeMaterialsApi::class, ExperimentalHazeApi::class)
+@Composable
+fun Modifier.floatingChrome(shape: CornerBasedShape): Modifier {
+    val container = MaterialTheme.colorScheme.surface
+    val glassOn = LocalLiquidGlassEnabled.current && isGlassSupported()
+    val haze = LocalAppHaze.current
+    // No solid fill under the glass. surface is nearly black in the dark theme,
+    // and the glass layer sits inside that circle — wherever it fell short, the
+    // fill showed as a black circle behind the button.
+    if (glassOn) return liquidGlass(shape)
+    val filled = clip(shape).background(container, shape)
+    return if (haze != null) {
+        filled.hazeEffect(
+            state = haze,
+            style = HazeMaterials.regular(container.copy(alpha = 0.72f)),
+        ) {
+            inputScale = HazeInputScale.Fixed(0.33f)
+        }.border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, shape)
+    } else {
+        filled.border(GLASS_EDGE_WIDTH, GLASS_EDGE_COLOR, shape)
+    }
+}
+
+/**
+ * What scrolls under the status bar dissolves into the page colour: opaque at the
+ * top edge, gone by 180dp, on a cubic ease-in so the join isn't a line.
+ *
+ * Pass [listState] when the list's first item is a [LargePageTitle]. The fade stays
+ * off until that title has started to scroll away (Home, Subscriptions, Library, …).
+ * Without it the scrim sits over the title and reads grey.
+ */
+@Composable
+fun PageTopFade(listState: LazyListState? = null, modifier: Modifier = Modifier) {
+    val page = MaterialTheme.colorScheme.surface
+    val brush = remember(page) {
+        Brush.verticalGradient(
+            colorStops = Array(16) { i ->
+                val t = i / 15f
+                t to page.copy(alpha = EaseInCubic.transform(1f - t))
+            },
+        )
+    }
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .graphicsLayer { alpha = if (listState == null) 1f else headingCover(listState) }
+            .drawBehind { drawRect(brush) },
+    )
+}
+
+/** 0 while the large title is fully on screen, 1 once it has scrolled away. */
+private fun headingCover(list: LazyListState): Float {
+    if (list.firstVisibleItemIndex > 0) return 1f
+    val header = list.layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }?.size?.toFloat() ?: return 0f
+    if (header <= 0f) return 0f
+    return (list.firstVisibleItemScrollOffset / header).coerceIn(0f, 1f)
+}

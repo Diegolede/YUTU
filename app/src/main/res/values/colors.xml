@@ -1,0 +1,7 @@
+<resources>
+    <color name="brand">#D81E4A</color>
+    <!-- Cold-start window and the system splash. Same as colorScheme.background
+         (Theme.kt), matching BitChord's pure white / black page. -->
+    <color name="window_light">#FFFFFF</color>
+    <color name="window_dark">#000000</color>
+</resources>

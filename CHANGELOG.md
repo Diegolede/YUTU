@@ -5,6 +5,9 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+- The loading screen shows the YUTU wordmark: black letters on the light theme, white on the dark one.
+- The header keeps the play mark next to the YUTU wordmark. The home-screen icon stays the black Y.
+
 ## 1.0.2
 
 - The home-screen icon is black with the Y.

@@ -440,6 +440,16 @@ private fun VideoStage(
     )
     val pullUp = remember { Animatable(0f) }
     val pullDistance = with(LocalDensity.current) { FullscreenPull.toPx() }
+    // Swipe right on the player to close it: the stage follows the finger and, past ~96 dp or
+    // with a flick, the sheet collapses. A plain horizontal drag: the scrubber consumes its own
+    // horizontal drags first, so it keeps working as before.
+    val swipeX = remember { Animatable(0f) }
+    val swipeThreshold = with(LocalDensity.current) { 96.dp.toPx() }
+    val swipeDrag = rememberDraggableState { delta ->
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            swipeX.snapTo((swipeX.value + delta).coerceAtLeast(0f))
+        }
+    }
     val pulling = remember { mutableStateOf(false) }
     val onFullscreenNow = rememberUpdatedState(onFullscreen)
     val reducedNow = rememberUpdatedState(reduced)
@@ -625,7 +635,21 @@ private fun VideoStage(
         Modifier
             .nestedScroll(sheetDrag)
             .scrollable(dragScroll, Orientation.Vertical, overscrollEffect = NoOverscroll)
-            .then(stage),
+            .then(stage)
+            .graphicsLayer { translationX = swipeX.value }
+            .draggable(
+                state = swipeDrag,
+                orientation = Orientation.Horizontal,
+                enabled = interactive,
+                onDragStopped = { velocity ->
+                    if (swipeX.value > swipeThreshold || velocity > 1200f) {
+                        onCollapse()
+                        scope.launch { swipeX.snapTo(0f) }
+                    } else {
+                        scope.launch { swipeX.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = 500f)) }
+                    }
+                },
+            ),
     ) {
         Box(Modifier.fillMaxSize().then(stageVideoClip)) {
             if (showVideo) {

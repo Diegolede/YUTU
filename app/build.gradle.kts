@@ -22,8 +22,8 @@ android {
         targetSdk = 36
         // Personal fork: same package as the official build (uninstall it once before installing
         // this one — different signing key). Version bumped so it is easy to tell apart.
-        versionCode = 5
-        versionName = "1.0.3"
+        versionCode = 6
+        versionName = "1.0.4"
         // Where the "new version" notice looks. Point it at this fork once it publishes releases.
         buildConfigField("String", "GITHUB_RELEASES_REPO", "\"Diegolede/YUTU\"")
         // The "Source code" row in Settings › About. CHANGE THIS to your own repository before

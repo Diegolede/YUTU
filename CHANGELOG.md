@@ -5,6 +5,8 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+- Swipe the player to the right to close it: it follows your finger and collapses past a quarter of the screen, or with a quick flick.
+
 ## 1.0.3
 
 - The loading screen shows the YUTU wordmark: black letters on the light theme, white on the dark one.

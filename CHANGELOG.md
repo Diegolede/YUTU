@@ -5,6 +5,8 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+## 1.0.5
+
 - The mini-player closes by swiping it to the right, like the swipe down it already had.
 
 ## 1.0.4

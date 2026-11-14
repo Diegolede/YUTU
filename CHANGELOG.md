@@ -5,6 +5,9 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+- The home-screen icon is black with the Y.
+- Inside the app, the splash screen, the header mark and the notification glyph go back to the play mark.
+
 ## 1.0.1
 
 - New icon: black with the Y, plus matching splash screen and status-bar glyph.

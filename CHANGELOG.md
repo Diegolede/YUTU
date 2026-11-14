@@ -5,6 +5,8 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+- The mini-player closes by swiping it to the right, like the swipe down it already had.
+
 ## 1.0.4
 
 - Swipe the player to the right to close it: it follows your finger and collapses past a quarter of the screen, or with a quick flick.

@@ -5,6 +5,8 @@ sheet shows. Put unreleased changes under "## Unreleased" as `- ` bullets.
 
 ## Unreleased
 
+## 1.0.2
+
 - The home-screen icon is black with the Y.
 - Inside the app, the splash screen, the header mark and the notification glyph go back to the play mark.
 
